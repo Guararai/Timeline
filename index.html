@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linha do Tempo Interativa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px 0;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            color: #ffffff;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .current-time {
+            font-size: 2.5em;
+            color: #00ff88;
+            font-weight: 200;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .current-date {
+            font-size: 1em;
+            color: #888;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .timeline-section {
+            margin: 60px 0;
+            position: relative;
+        }
+
+        .timeline-container {
+            position: relative;
+            padding: 100px 0;
+            overflow-x: auto;
+        }
+
+        .timeline-line {
+            position: relative;
+            height: 2px;
+            background: linear-gradient(90deg, #00ff88 0%, #00ccff 100%);
+            margin: 0 40px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(0, 255, 136, 0.6);
+            }
+        }
+
+        .timeline-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #0a0a0a;
+            border-radius: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 2;
+        }
+
+        .timeline-point:hover {
+            width: 18px;
+            height: 18px;
+            border-width: 3px;
+            animation: none;
+        }
+
+        .timeline-point:focus {
+            outline: 2px solid #00ccff;
+            outline-offset: 4px;
+        }
+
+        .timeline-point.now {
+            background: #00ff88;
+            border-color: #00ff88;
+            width: 10px;
+            height: 10px;
+            animation: none;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 1);
+        }
+
+        .timeline-label {
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75em;
+            color: #888;
+            white-space: nowrap;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid #00ff88;
+            color: #e0e0e0;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #00ff88;
+        }
+
+        .timeline-point:hover .tooltip {
+            opacity: 1;
+        }
+
+        .form-section {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid #333;
+            padding: 30px;
+            border-radius: 4px;
+            margin-bottom: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 300;
+            color: #888;
+            font-size: 0.85em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        input[type="text"],
+        input[type="datetime-local"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid #333;
+            border-radius: 2px;
+            font-size: 1em;
+            transition: all 0.3s;
+            font-family: inherit;
+            color: #e0e0e0;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #00ff88;
+            background: rgba(30, 30, 30, 1);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            color: #00ff88;
+            border: 1px solid #00ff88;
+            border-radius: 2px;
+            font-size: 0.9em;
+            font-weight: 300;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        button[type="submit"]:hover {
+            background: #00ff88;
+            color: #0a0a0a;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        button[type="submit"]:active {
+            transform: scale(0.98);
+        }
+
+        .error-message {
+            color: #ff4444;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            border-radius: 2px;
+            display: none;
+            font-size: 0.9em;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: #141414;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .modal-date {
+            color: #00ff88;
+            font-weight: 300;
+            margin-bottom: 20px;
+            font-size: 1em;
+            letter-spacing: 1px;
+        }
+
+        .modal-description {
+            color: #888;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+            font-weight: 300;
+        }
+
+        .countdown {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 25px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 200;
+            margin-bottom: 30px;
+            line-height: 1.5;
+            letter-spacing: 1px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .countdown.past {
+            background: rgba(255, 68, 68, 0.05);
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .modal-close,
+        .modal-delete {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 2px;
+            font-size: 0.85em;
+            font-weight: 300;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #888;
+        }
+
+        .modal-close:hover {
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        .modal-delete {
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        .modal-delete:hover {
+            background: #ff4444;
+            color: #0a0a0a;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #555;
+        }
+
+        .empty-state p {
+            font-size: 1em;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.4em;
+            }
+
+            .current-time {
+                font-size: 2em;
+            }
+
+            .modal {
+                padding: 25px;
+            }
+
+            .modal-buttons {
+                flex-direction: column;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Timeline</h1>
+            <div class="current-time" id="currentTime">00:00:00</div>
+            <div class="current-date" id="currentDate"></div>
+        </header>
+
+        <div class="timeline-section">
+            <div class="timeline-container">
+                <div class="timeline-line" id="timelineLine"></div>
+            </div>
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <p>Nenhum evento cadastrado</p>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <form id="eventForm">
+                <div class="form-group">
+                    <label for="eventTitle">Título</label>
+                    <input type="text" id="eventTitle" placeholder="Nome do evento" required>
+                </div>
+                <div class="form-group">
+                    <label for="eventDate">Data e Hora</label>
+                    <input type="datetime-local" id="eventDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="eventDescription">Descrição</label>
+                    <textarea id="eventDescription" placeholder="Detalhes opcionais"></textarea>
+                </div>
+                <button type="submit">Adicionar Evento</button>
+                <div class="error-message" id="errorMessage"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true">
+        <div class="modal" id="modal">
+            <h2 id="modalTitle"></h2>
+            <div class="modal-date" id="modalDate"></div>
+            <p class="modal-description" id="modalDescription"></p>
+            <div class="countdown" id="countdown"></div>
+            <div class="modal-buttons">
+                <button class="modal-close" id="modalClose">Fechar</button>
+                <button class="modal-delete" id="modalDelete">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let events = [];
+        let countdownInterval = null;
+        let currentFocusedElement = null;
+        let currentEventId = null;
+        let clockInterval = null;
+
+        function setCookie(name, value, days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + date.toUTCString();
+            document.cookie = name + "=" + value + ";" + expires + ";path=/";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    return decodeURIComponent(c.substring(nameEQ.length, c.length));
+                }
+            }
+            return null;
+        }
+
+        function saveEventsToCookie() {
+            const eventsJSON = JSON.stringify(events);
+            console.log('Salvando eventos:', eventsJSON);
+            setCookie('timelineEvents', encodeURIComponent(eventsJSON), 365);
+            console.log('Cookie salvo. Verificando:', getCookie('timelineEvents'));
+        }
+
+        function loadEventsFromCookie() {
+            const eventsJSON = getCookie('timelineEvents');
+            console.log('Cookie lido:', eventsJSON);
+            if (eventsJSON) {
+                try {
+                    events = JSON.parse(eventsJSON);
+                    console.log('Eventos carregados:', events);
+                } catch (e) {
+                    console.error('Erro ao carregar eventos do cookie:', e);
+                    events = [];
+                }
+            } else {
+                console.log('Nenhum cookie encontrado');
+            }
+        }
+
+        function formatDate(date) {
+            const d = new Date(date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            
+            document.getElementById('currentTime').textContent = `${hours}:${minutes}:${seconds}`;
+            document.getElementById('currentDate').textContent = `${day}/${month}/${year}`;
+        }
+
+        function renderTimeline() {
+            const timelineLine = document.getElementById('timelineLine');
+            const emptyState = document.getElementById('emptyState');
+            
+            timelineLine.innerHTML = '';
+
+            const now = Date.now();
+            const threeYearsInMs = 2.5 * 365 * 24 * 60 * 60 * 1000;
+
+            const nowPoint = document.createElement('div');
+            nowPoint.className = 'timeline-point now';
+            nowPoint.style.left = '0%';
+            
+            const nowLabel = document.createElement('div');
+            nowLabel.className = 'timeline-label';
+            nowLabel.textContent = 'AGORA';
+            nowPoint.appendChild(nowLabel);
+            
+            timelineLine.appendChild(nowPoint);
+
+            const futureEvents = events.filter(event => new Date(event.date).getTime() > now);
+
+            if (futureEvents.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            futureEvents.forEach(event => {
+                const eventTime = new Date(event.date).getTime();
+                const timeDiff = eventTime - now;
+                const ratio = Math.min(timeDiff / threeYearsInMs, 1);
+                const position = ratio * 100;
+
+                // Calcular cor baseada na proximidade (0 = próximo/vermelho, 1 = distante/verde)
+                const colorRatio = ratio;
+                const red = Math.round(255 * (1 - colorRatio));
+                const green = Math.round(255 * colorRatio * 0.6);
+                const pointColor = `rgb(${red}, ${green}, 136)`;
+                const glowColor = `rgba(${red}, ${green}, 136, 0.6)`;
+
+                const point = document.createElement('button');
+                point.className = 'timeline-point';
+                point.style.left = position + '%';
+                point.style.borderColor = pointColor;
+                point.style.borderWidth = '2px';
+                point.style.boxShadow = `0 0 20px ${glowColor}`;
+                point.setAttribute('data-id', event.id);
+                point.setAttribute('aria-label', `Ver detalhes do evento: ${event.title}`);
+
+                // Adicionar animação de pulso com cor dinâmica
+                const pulseKeyframes = `
+                    @keyframes pulse-${event.id} {
+                        0%, 100% {
+                            box-shadow: 0 0 0 0 ${glowColor};
+                        }
+                        50% {
+                            box-shadow: 0 0 0 8px rgba(${red}, ${green}, 136, 0);
+                        }
+                    }
+                `;
+                
+                // Verificar se já existe um elemento style para keyframes
+                let styleElement = document.getElementById('dynamic-keyframes');
+                if (!styleElement) {
+                    styleElement = document.createElement('style');
+                    styleElement.id = 'dynamic-keyframes';
+                    document.head.appendChild(styleElement);
+                }
+                styleElement.textContent += pulseKeyframes;
+                
+                point.style.animation = `pulse-${event.id} 2s ease-in-out infinite`;
+
+                // Hover com cor dinâmica
+                point.addEventListener('mouseenter', () => {
+                    point.style.background = pointColor;
+                    point.style.boxShadow = `0 0 30px ${glowColor}`;
+                });
+
+                point.addEventListener('mouseleave', () => {
+                    point.style.background = '#0a0a0a';
+                    point.style.boxShadow = `0 0 20px ${glowColor}`;
+                });
+
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tooltip';
+                tooltip.style.borderColor = pointColor;
+                tooltip.textContent = `${event.title}`;
+                point.appendChild(tooltip);
+
+                point.addEventListener('click', () => {
+                    currentFocusedElement = point;
+                    openModal(event.id);
+                });
+
+                point.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        currentFocusedElement = point;
+                        openModal(event.id);
+                    }
+                });
+
+                timelineLine.appendChild(point);
+            });
+        }
+
+        function openModal(eventId) {
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            currentEventId = eventId;
+
+            const modal = document.getElementById('modal');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDate = document.getElementById('modalDate');
+            const modalDescription = document.getElementById('modalDescription');
+
+            modalTitle.textContent = event.title;
+            modalDate.textContent = formatDate(event.date);
+            modalDescription.textContent = event.description || 'Sem descrição';
+
+            modalOverlay.classList.add('active');
+            startCountdown(event.date);
+
+            setTimeout(() => modalTitle.focus(), 100);
+        }
+
+        function closeModal() {
+            const modalOverlay = document.getElementById('modalOverlay');
+            modalOverlay.classList.remove('active');
+            stopCountdown();
+            currentEventId = null;
+
+            if (currentFocusedElement) {
+                setTimeout(() => currentFocusedElement.focus(), 100);
+                currentFocusedElement = null;
+            }
+        }
+
+        function deleteEvent() {
+            if (!currentEventId) return;
+
+            events = events.filter(e => e.id !== currentEventId);
+            saveEventsToCookie();
+            closeModal();
+            renderTimeline();
+        }
+
+        function startCountdown(eventDate) {
+            const countdownElement = document.getElementById('countdown');
+            
+            function updateCountdown() {
+                const now = Date.now();
+                const eventTime = new Date(eventDate).getTime();
+                const diff = eventTime - now;
+
+                const isPast = diff < 0;
+                const absDiff = Math.abs(diff);
+
+                const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((absDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((absDiff % (1000 * 60)) / 1000);
+
+                if (isPast) {
+                    countdownElement.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s atrás`;
+                    countdownElement.classList.add('past');
+                } else {
+                    countdownElement.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                    countdownElement.classList.remove('past');
+                }
+            }
+
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        document.getElementById('eventForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('eventTitle').value.trim();
+            const date = document.getElementById('eventDate').value;
+            const description = document.getElementById('eventDescription').value.trim();
+            const errorMessage = document.getElementById('errorMessage');
+
+            if (!title) {
+                errorMessage.textContent = 'Por favor, preencha o título do evento.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            if (!date) {
+                errorMessage.textContent = 'Por favor, selecione uma data e hora.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            const eventDate = new Date(date);
+            const now = new Date();
+
+            if (eventDate <= now) {
+                errorMessage.textContent = 'A data precisa ser no futuro.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            const newEvent = {
+                id: Date.now(),
+                title: title,
+                date: eventDate.toISOString(),
+                description: description
+            };
+
+            events.push(newEvent);
+            saveEventsToCookie();
+            renderTimeline();
+
+            document.getElementById('eventForm').reset();
+            errorMessage.style.display = 'none';
+        });
+
+        document.getElementById('modalClose').addEventListener('click', closeModal);
+        document.getElementById('modalDelete').addEventListener('click', deleteEvent);
+
+        document.getElementById('modalOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modalOverlay') {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modalOverlay = document.getElementById('modalOverlay');
+                if (modalOverlay.classList.contains('active')) {
+                    closeModal();
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEventsFromCookie();
+            renderTimeline();
+            updateCurrentTime();
+            clockInterval = setInterval(updateCurrentTime, 1000);
+        });
+    </script>
+</body>
+</html>
